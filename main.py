@@ -60,17 +60,28 @@ async def main(message: str):
     )
     #GPT response
     gpt_response = response['choices'][0]['message']['content']
-    print(gpt_response)
+    print("GPT response:{}".format(gpt_response))
 
+    has_code = False
     # GPT CODE
-    just_code = extract_code(gpt_response)
-    exec(just_code)
+    if "```" in gpt_response:
+        just_code = extract_code(gpt_response)
+        print("CODE part:{}".format(just_code))
+        # Interpret the code
+        exec(just_code)
+        has_code = True
 
-    # Read the image
-    elements = [
-        cl.Image(name="image1", display="inline", path="./img.png")
-    ]
+    final_message = ""
+    if has_code:
+        # Read the image
+        elements = [
+            cl.Image(name="image1", display="inline", path="./img.png")
+        ]
 
-    # Provide the explaination
-    explaination = gpt_response.split("```")[2]
-    await cl.Message(content=explaination, elements=elements).send()
+        # Provide the explaination
+        final_message = gpt_response.split("```")[2]
+        await cl.Message(content=final_message, elements=elements).send()
+    else:
+        final_message = gpt_response
+        await cl.Message(content=final_message).send()
+    
