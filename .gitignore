@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Remove openaikey
+openaikey.txt
+
+
 # Distribution / packaging
 .Python
 build/
