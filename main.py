@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import openai
 import chainlit as cl
 import re
+import chardet
 
 system_prompt = """Act as a data scientist. Given a pandas dataframe called "df" you will help the user to make an exploratory analysis. 
 You have to provide the python code for the data visualizations by using matplotlib and pandas with also the explaination of the analysis. 
@@ -20,7 +21,7 @@ settings = {
     "presence_penalty": 0,
 }
 
-df = pd.read_csv("./adult_csv.csv")
+df = None
 
 def get_dt_columns_info(df):
     # Get the column names and their value types
@@ -30,11 +31,31 @@ def get_dt_columns_info(df):
     infos = ""
     # Print the column names and their value types
     for column_name, column_type in column_types_list:
-        infos+="{}:{}".format(column_name, column_type)
+        infos+="{}:{}\n".format(column_name, column_type)
     return infos
 
 @cl.on_chat_start
-def start_chat():
+async def start_chat():
+    files = None
+
+    # Wait for the user to upload a file
+    while files == None:
+        files = await cl.AskFileMessage(
+            content="Please upload you csv dataset file to begin!", accept=["csv"], max_size_mb=100
+        ).send()
+    # Decode the file
+    text_file = files[0]
+    the_encoding = chardet.detect(text_file.content)['encoding']
+    text = text_file.content.decode(the_encoding)
+    f = open(text_file.path,"w")
+    f.write(text)
+    f.close()
+    global df
+    df = pd.read_csv(text_file.path, encoding=the_encoding)
+    await cl.Message(
+        content=f"`{text_file.name}` uploaded correctly!\n it contains {df.shape[0]} Rows and {df.shape[1]} Columns where each column type are:\n [{get_dt_columns_info(df)}]"
+    ).send()
+
     cl.user_session.set(
         "message_history",
         [{"role": "system", "content": system_prompt.format(get_dt_columns_info(df))}],
