@@ -62,12 +62,26 @@ async def start_chat():
     )
 
 def extract_code(gpt_response):
-    pattern = r"```python(.*?)```"
+    pattern = r"```(.*?)```"
     match = re.search(pattern, gpt_response, re.DOTALL)
     if match:
         return match.group(1)
     else:
         return None
+
+def interpret_code(gpt_response):
+    if "```" in gpt_response:
+        just_code = extract_code(gpt_response)
+        if just_code.startswith("python"):
+            just_code = just_code[len("python"):]
+        print("CODE part:{}".format(just_code))
+        try:
+            # Interpret the code
+            exec(just_code)
+            return True
+        except: # The code has some error
+            return False        
+    return False
 
 @cl.on_message  # this function will be called every time a user inputs a message in the UI
 async def main(message: str):
@@ -83,14 +97,8 @@ async def main(message: str):
     gpt_response = response['choices'][0]['message']['content']
     print("GPT response:{}".format(gpt_response))
 
-    has_code = False
-    # GPT CODE
-    if "```" in gpt_response:
-        just_code = extract_code(gpt_response)
-        print("CODE part:{}".format(just_code))
-        # Interpret the code
-        exec(just_code)
-        has_code = True
+    # Extract code and interpret IT
+    has_code = interpret_code(gpt_response)
 
     final_message = ""
     if has_code:
