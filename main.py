@@ -41,17 +41,19 @@ async def start_chat():
     # Wait for the user to upload a file
     while files == None:
         files = await cl.AskFileMessage(
-            content="Please upload you csv dataset file to begin!", accept=["csv"], max_size_mb=100
+            content="Please upload you csv dataset file to begin!", accept=["csv","xlsx"], max_size_mb=100
         ).send()
     # Decode the file
     text_file = files[0]
-    the_encoding = chardet.detect(text_file.content)['encoding']
-    text = text_file.content.decode(the_encoding)
-    f = open(text_file.path,"w")
+    text = text_file.content
+    f = open(text_file.path, "wb")
     f.write(text)
     f.close()
     global df
-    df = pd.read_csv(text_file.path, encoding=the_encoding)
+    if "csv" in text_file.path:
+        df = pd.read_csv(text_file.path)
+    else:
+        df = pd.read_excel(text_file.path, index_col=0)    
     await cl.Message(
         content=f"`{text_file.name}` uploaded correctly!\n it contains {df.shape[0]} Rows and {df.shape[1]} Columns where each column type are:\n [{get_dt_columns_info(df)}]"
     ).send()
@@ -77,6 +79,7 @@ def interpret_code(gpt_response):
         print("CODE part:{}".format(just_code))
         try:
             # Interpret the code
+            print("Codice da interpretare.")
             exec(just_code)
             return True
         except: # The code has some error
