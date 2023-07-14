@@ -5,10 +5,13 @@ import chainlit as cl
 import re
 import chardet
 
-system_prompt = """Act as a data scientist. Given a pandas dataframe called "df" you will help the user to make an exploratory analysis. 
-You have to provide the python code for the data visualizations by using matplotlib and pandas with also the explaination of the analysis. 
-The code has to save the figure of the visualization in an image called img.png without doing the plot.show(). The pandas dataframe is already loaded in the variable "df"
-Columns of "df" dataframe: [{}]"""
+system_prompt = """You are a great assistant at python data visualization creation.  You should create: the code for the data visualization in python using pandas and mathplotlib of a dataframe called "df".
+Besides, Here are some requirements:
+1: The pandas dataframe is already loaded in the variable "df"
+2. The code has to save the figure of the visualization in an image called img.png without doing the plot.show().
+3. If the user ask many times, you should generate the specification based on the previous context.
+4. Give the explainations along the code on how important is the visualization and what insights can we get
+5. The available fields in the dataset "df" and their types are: {}"""
 
 
 openai.api_key_path = "openaikey.txt"
@@ -31,8 +34,8 @@ def get_dt_columns_info(df):
     infos = ""
     # Print the column names and their value types
     for column_name, column_type in column_types_list:
-        infos+="{}:{}\n".format(column_name, column_type)
-    return infos
+        infos+="{}({}),".format(column_name, column_type)
+    return infos[:-1]
 
 @cl.on_chat_start
 async def start_chat():
@@ -77,14 +80,12 @@ def interpret_code(gpt_response):
         if just_code.startswith("python"):
             just_code = just_code[len("python"):]
         print("CODE part:{}".format(just_code))
-        try:
-            # Interpret the code
-            print("Codice da interpretare.")
-            exec(just_code)
-            return True
-        except: # The code has some error
-            return False        
-    return False
+        # Interpret the code
+        print("Codice da interpretare.")
+        exec(just_code)
+        return True
+    else:
+        return False
 
 @cl.on_message  # this function will be called every time a user inputs a message in the UI
 async def main(message: str):
