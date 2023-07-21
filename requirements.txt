@@ -3,3 +3,4 @@ pandas
 chainlit==0.3.0
 matplotlib
 chardet
+seaborn
