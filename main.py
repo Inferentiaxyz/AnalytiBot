@@ -7,7 +7,8 @@ import chardet
 
 system_prompt = """You are a great assistant at python data visualization creation.  You should create: the code for the data visualization in python using pandas and mathplotlib of a dataframe called "df".
 Besides, Here are some requirements:
-1: The pandas dataframe is already loaded in the variable "df", you don't have to load the dataframe.
+1: The pandas dataframe is already loaded in the variable "df".
+2: Do not load the dataframe in the generated code!
 2. The code has to save the figure of the visualization in an image called img.png do not do the plot.show().
 3. If the user ask many times, you should generate the specification based on the previous context.
 4. Give the explainations along the code on how important is the visualization and what insights can we get
@@ -34,7 +35,7 @@ def get_dt_columns_info(df):
     infos = ""
     # Print the column names and their value types
     for column_name, column_type in column_types_list:
-        infos+="{}({}),".format(column_name, column_type)
+        infos+="{}({}),\n".format(column_name, column_type)
     return infos[:-1]
 
 @cl.on_chat_start
@@ -73,12 +74,25 @@ def extract_code(gpt_response):
         return match.group(1)
     else:
         return None
+    
+def filter_rows(input_string):
+    # Split the input string into individual rows
+    rows = input_string.strip().split('\n')
+    
+    # Filter out rows containing "pr.read_csv" or "pd.read_excel"
+    filtered_rows = [row for row in rows if "pr.read_csv" not in row and "pd.read_excel" not in row]
+    
+    # Join the filtered rows back into a single string
+    filtered_string = '\n'.join(filtered_rows)
+    
+    return filtered_string
 
 def interpret_code(gpt_response):
     if "```" in gpt_response:
         just_code = extract_code(gpt_response)
         if just_code.startswith("python"):
             just_code = just_code[len("python"):]
+        just_code = filter_rows(just_code)
         print("CODE part:{}".format(just_code))
         # Interpret the code
         print("Codice da interpretare.")
