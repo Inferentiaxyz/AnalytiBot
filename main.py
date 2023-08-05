@@ -16,7 +16,7 @@ Besides, Here are some requirements:
 
 
 openai.api_key_path = "openaikey.txt"
-model_name = "gpt-3.5-turbo"
+model_name = "gpt4"
 settings = {
     "temperature": 1,
     "max_tokens": 500,
