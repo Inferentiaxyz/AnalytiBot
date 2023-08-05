@@ -10,13 +10,14 @@ Besides, Here are some requirements:
 1: The pandas dataframe is already loaded in the variable "df".
 2: Do not load the dataframe in the generated code!
 2. The code has to save the figure of the visualization in an image called img.png do not do the plot.show().
-3. If the user ask many times, you should generate the specification based on the previous context.
-4. Give the explainations along the code on how important is the visualization and what insights can we get
-5. The available fields in the dataset "df" and their types are: {}"""
+3. Give the explainations along the code on how important is the visualization and what insights can we get
+4. If the user asks for suggestions of analysis just provide the possible analysis without the code.
+5. For any visualizations write only one block of code.
+6. The available fields in the dataset "df" and their types are: {}"""
 
 
 openai.api_key_path = "openaikey.txt"
-model_name = "gpt4"
+model_name = "gpt-3.5-turbo"
 settings = {
     "temperature": 1,
     "max_tokens": 500,
@@ -45,7 +46,7 @@ async def start_chat():
     # Wait for the user to upload a file
     while files == None:
         files = await cl.AskFileMessage(
-            content="Please upload you csv dataset file to begin!", accept=["csv","xlsx"], max_size_mb=100
+            content="Please upload you csv/xlsx dataset file to begin!", accept=["csv","xlsx"], max_size_mb=100
         ).send()
     # Decode the file
     text_file = files[0]
@@ -69,23 +70,19 @@ async def start_chat():
 
 def extract_code(gpt_response):
     pattern = r"```(.*?)```"
-    match = re.search(pattern, gpt_response, re.DOTALL)
-    if match:
-        return match.group(1)
+    matches = re.findall(pattern, gpt_response, re.DOTALL)
+    if matches:
+        return matches[-1]
     else:
         return None
     
-def filter_rows(input_string):
+def filter_rows(text):
     # Split the input string into individual rows
-    rows = input_string.strip().split('\n')
+    lines = text.split('\n')
+    filtered_lines = [line for line in lines if "pd.read_csv" not in line and "pd.read_excel" not in line  and ".show()" not in line]
+    filtered_text = '\n'.join(filtered_lines)
     
-    # Filter out rows containing "pr.read_csv" or "pd.read_excel"
-    filtered_rows = [row for row in rows if "pr.read_csv" not in row and "pd.read_excel" not in row]
-    
-    # Join the filtered rows back into a single string
-    filtered_string = '\n'.join(filtered_rows)
-    
-    return filtered_string
+    return filtered_text
 
 def interpret_code(gpt_response):
     if "```" in gpt_response:
@@ -126,7 +123,7 @@ async def main(message: str):
         ]
 
         # Provide the explaination
-        final_message = gpt_response.split("```")[2]
+        final_message = gpt_response.split("```")[-1]
         await cl.Message(content=final_message, elements=elements).send()
     else:
         final_message = gpt_response
