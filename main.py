@@ -4,8 +4,12 @@ import openai
 import chainlit as cl
 import re
 import chardet
+import sys
+import io
+import os
 
-system_prompt = """You are a great assistant at python data visualization creation.  You should create: the code for the data visualization in python using pandas and mathplotlib of a dataframe called "df".
+system_prompt = """You are a great assistant at python dataframe analysis. You will reply to the user's messages and provide the user with the necessary information.
+The user will ask you to provide the code to answer any question about the dataset.
 Besides, Here are some requirements:
 1: The pandas dataframe is already loaded in the variable "df".
 2: Do not load the dataframe in the generated code!
@@ -87,19 +91,56 @@ def filter_rows(text):
 def interpret_code(gpt_response):
     if "```" in gpt_response:
         just_code = extract_code(gpt_response)
+        
         if just_code.startswith("python"):
             just_code = just_code[len("python"):]
+        
         just_code = filter_rows(just_code)
         print("CODE part:{}".format(just_code))
+        
         # Interpret the code
         print("Codice da interpretare.")
-        exec(just_code)
-        return True
+        
+        # Redirect standard output to a string buffer
+        old_stdout = sys.stdout
+        new_stdout = io.StringIO()
+        sys.stdout = new_stdout
+        
+        try:
+            exec(just_code)
+        except Exception as e:
+            sys.stdout = old_stdout
+            return str(e)
+        
+        # Restore original standard output
+        sys.stdout = old_stdout
+        
+        # Return captured output
+        return new_stdout.getvalue().strip()
+    
     else:
         return False
 
+
+def quick_reply(infos, text):
+    return openai.ChatCompletion.create(
+    model="gpt-3.5-turbo-16k",
+    temperature=0.10,
+    max_tokens=512,
+    messages = [{"role": "system", "content" : f"Reply to the user questions using the informations you have contained in INFOS:\"\"\"{infos}\"\"\""},{"role":"user","content":"{}".format(text)}]
+    )['choices'][0]['message']['content']
+
 @cl.on_message  # this function will be called every time a user inputs a message in the UI
 async def main(message: str):
+    #delete img.png image if exists
+    try:
+        os.remove("img.png")
+    except:
+        pass
+
+    elements = []
+
+    # Add the user's message to the history
     message_history = cl.user_session.get("message_history")
     message_history.append({"role": "user", "content": message}) 
     # Generation of the image
@@ -114,18 +155,19 @@ async def main(message: str):
 
     # Extract code and interpret IT
     has_code = interpret_code(gpt_response)
+    print(f"Has_code: {has_code}")
 
     final_message = ""
+    if os.path.exists("./img.png"):
+            # Read the image
+            elements = [
+                cl.Image(name="image1", display="inline", path="./img.png")
+            ]
     if has_code:
-        # Read the image
-        elements = [
-            cl.Image(name="image1", display="inline", path="./img.png")
-        ]
-
-        # Provide the explaination
-        final_message = gpt_response.split("```")[-1]
-        await cl.Message(content=final_message, elements=elements).send()
+        infos = has_code
+        result = quick_reply(infos, message)
+        await cl.Message(content=result, elements=elements).send()
     else:
         final_message = gpt_response
-        await cl.Message(content=final_message).send()
+        await cl.Message(content=final_message, elements=elements).send()
     
